@@ -1,14 +1,14 @@
 // ignore_for_file: public_member_api_docs, invalid_use_of_protected_member
 
 import 'dart:html';
-//import 'dart:js_util';
+import 'dart:js_util';
 
 import 'package:isar_community/isar.dart';
-/*import 'package:isar_community/src/common/schemas.dart';
+import 'package:isar_community/src/common/schemas.dart';
 
 import 'package:isar_community/src/web/bindings.dart';
 import 'package:isar_community/src/web/isar_collection_impl.dart';
-import 'package:isar_community/src/web/isar_impl.dart';*/
+import 'package:isar_community/src/web/isar_impl.dart';
 import 'package:isar_community/src/web/isar_web.dart';
 import 'package:meta/meta.dart';
 
@@ -22,7 +22,7 @@ Future<void> initializeIsarWeb([String? jsUrl]) async {
   final script = ScriptElement();
   script.type = 'text/javascript';
   // ignore: unsafe_html
-  script.src = 'https://unpkg.com/isar@${Isar.version}/dist/index.js';
+  script.src = jsUrl ?? 'https://unpkg.com/isar@${Isar.version}/dist/index.js';
   script.async = true;
   document.head!.append(script);
   await script.onLoad.first.timeout(
@@ -46,11 +46,7 @@ Future<Isar> openIsar({
   required bool relaxedDurability,
   CompactCondition? compactOnLaunch,
 }) async {
-  throw IsarError(
-    'Please use Isar 2.5.0 if you need web support. '
-    'A 3.x version with web support will be released soon.',
-  );
-  /*await initializeIsarWeb();
+  await initializeIsarWeb();
   final schemasJson = getSchemas(schemas).map((e) => e.toJson());
   final schemasJs = jsify(schemasJson.toList()) as List<dynamic>;
   final instance = await openIsarJs(name, schemasJs, relaxedDurability)
@@ -70,7 +66,7 @@ Future<Isar> openIsar({
   }
 
   isar.attachCollections(cols);
-  return isar;*/
+  return isar;
 }
 
 Isar openIsarSync({
