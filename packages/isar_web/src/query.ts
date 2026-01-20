@@ -1,6 +1,6 @@
 import { IsarCollection } from './collection'
-import { useCursor } from './cursor'
 import { idName } from './instance'
+import { useCursor } from './cursor'
 import { IsarLink } from './link'
 import { IsarTxn } from './txn'
 
@@ -287,7 +287,7 @@ export class IsarQuery<OBJ> {
           let value = this.collection
             .getIndexKeyPath(whereClause.indexName!)
             .map(p =>
-              p === this.collection.idName ? id : (object as any)[p],
+              p === idName ? id : (object as any)[p],
             )
           if (value.length === 1) {
             value = value[0]
