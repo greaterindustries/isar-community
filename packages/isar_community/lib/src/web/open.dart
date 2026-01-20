@@ -12,6 +12,9 @@ import 'package:isar_community/src/web/isar_impl.dart';
 import 'package:isar_community/src/web/isar_web.dart';
 import 'package:meta/meta.dart';
 
+const String _defaultIsarJsUrl =
+    String.fromEnvironment('ISAR_WEB_URL', defaultValue: 'isar.js');
+
 bool _loaded = false;
 Future<void> initializeIsarWeb([String? jsUrl]) async {
   if (_loaded) {
@@ -22,7 +25,7 @@ Future<void> initializeIsarWeb([String? jsUrl]) async {
   final script = ScriptElement();
   script.type = 'text/javascript';
   // ignore: unsafe_html
-  script.src = jsUrl ?? 'https://unpkg.com/isar@${Isar.version}/dist/index.js';
+  script.src = jsUrl ?? _defaultIsarJsUrl;
   script.async = true;
   document.head!.append(script);
   await script.onLoad.first.timeout(
