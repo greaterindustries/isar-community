@@ -20,6 +20,7 @@ class IsarCollectionImpl<OBJ> extends IsarCollection<OBJ> {
     required this.isar,
     required this.native,
     required this.schema,
+    required this.propertyNamesByOffsets,
   });
 
   @override
@@ -29,6 +30,8 @@ class IsarCollectionImpl<OBJ> extends IsarCollection<OBJ> {
   @override
   final CollectionSchema<OBJ> schema;
 
+  final Map<List<int>, List<String>> propertyNamesByOffsets;
+
   @override
   String get name => schema.name;
 
@@ -37,8 +40,15 @@ class IsarCollectionImpl<OBJ> extends IsarCollection<OBJ> {
   @tryInline
   OBJ deserializeObject(Object object) {
     final id = getProperty<int>(object, idName);
-    final reader = IsarReaderImpl(object);
-    return schema.deserialize(id, reader, _offsets, isar.offsets);
+    final reader = IsarReaderImpl(
+      object,
+      propertyNamesByOffsets[_offsets]!,
+      propertyNamesByOffsets,
+    );
+    final obj = schema.deserialize(id, reader, _offsets, isar.offsets);
+    // Attach so link operations work for deserialized objects.
+    schema.attach(this, id, obj);
+    return obj;
   }
 
   @tryInline
@@ -91,7 +101,11 @@ class IsarCollectionImpl<OBJ> extends IsarCollection<OBJ> {
       final serialized = <Object>[];
       for (final object in objects) {
         final jsObj = newObject<Object>();
-        final writer = IsarWriterImpl(jsObj);
+        final writer = IsarWriterImpl(
+          jsObj,
+          propertyNamesByOffsets[_offsets]!,
+          propertyNamesByOffsets,
+        );
         schema.serialize(object, writer, _offsets, isar.offsets);
         setProperty(jsObj, idName, schema.getId(object));
         serialized.add(jsObj);

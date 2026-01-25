@@ -12,6 +12,9 @@ interface UniqueIndex {
 
 export type IndexKey = string | number | IndexKey[]
 
+// Must match Isar.autoIncrement for the web runtime (dart:html).
+const autoIncrementId = -9007199254740991
+
 export class IsarCollection<OBJ> extends IsarWatchable<OBJ> {
   readonly isar: IsarInstance
   readonly name: string
@@ -149,13 +152,14 @@ export class IsarCollection<OBJ> extends IsarWatchable<OBJ> {
       const changeSet = txn.getChangeSet(this.name)
       for (let i = 0; i < objects.length; i++) {
         const object = objects[i] as any
-        const id = object[idName]
+        const id = object[idName] as number | undefined
+        const hasId = id != null && id !== autoIncrementId
 
-        const req = store.put(object)
+        const req = hasId ? store.put(object, id) : store.put(object)
         delete object[idName]
 
-        ids.push(id)
-        if (!id) {
+        ids.push(hasId ? id : undefined)
+        if (!hasId) {
           req.onsuccess = () => {
             const id = req.result as number
             ids[i] = id
@@ -165,7 +169,7 @@ export class IsarCollection<OBJ> extends IsarWatchable<OBJ> {
             }
           }
         } else {
-          changeSet.registerChange(id, object)
+          changeSet.registerChange(id!, object)
           if (i === objects.length - 1) {
             req.onsuccess = () => {
               resolve(ids as number[])
