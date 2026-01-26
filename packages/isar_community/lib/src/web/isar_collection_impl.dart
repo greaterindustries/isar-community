@@ -40,7 +40,8 @@ class IsarCollectionImpl<OBJ> extends IsarCollection<OBJ> {
   @tryInline
   OBJ deserializeObject(Object object) {
     final rawId = getProperty<Object?>(object, idName);
-    final id = rawId is num ? rawId.toInt() : 0;
+    final hasRawId = rawId is num;
+    final id = hasRawId ? rawId.toInt() : 0;
     final reader = IsarReaderImpl(
       object,
       propertyNamesByOffsets[_offsets]!,
@@ -48,7 +49,10 @@ class IsarCollectionImpl<OBJ> extends IsarCollection<OBJ> {
     );
     final obj = schema.deserialize(id, reader, _offsets, isar.offsets);
     // Attach so link operations work for deserialized objects.
-    schema.attach(this, id, obj);
+    final attachId = hasRawId ? id : schema.getId(obj);
+    if (hasRawId || (attachId != null && attachId != 0)) {
+      schema.attach(this, attachId ?? id, obj);
+    }
     return obj;
   }
 

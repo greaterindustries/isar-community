@@ -299,9 +299,9 @@ class IsarReaderImpl implements IsarReader {
     if (value is List) {
       return value
           .map(
-            (e) => e is int && e != nullNumber
+            (e) => e is num && e != nullNumber
                 ? DateTime.fromMillisecondsSinceEpoch(
-                    e,
+                    e.toInt(),
                     isUtc: true,
                   ).toLocal()
                 : nullDate,
@@ -319,9 +319,9 @@ class IsarReaderImpl implements IsarReader {
     if (value is List) {
       return value
           .map(
-            (e) => e is int && e != nullNumber
+            (e) => e is num && e != nullNumber
                 ? DateTime.fromMillisecondsSinceEpoch(
-                    e,
+                    e.toInt(),
                     isUtc: true,
                   ).toLocal()
                 : null,
