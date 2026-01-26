@@ -39,7 +39,8 @@ class IsarCollectionImpl<OBJ> extends IsarCollection<OBJ> {
 
   @tryInline
   OBJ deserializeObject(Object object) {
-    final id = getProperty<int>(object, idName);
+    final rawId = getProperty<Object?>(object, idName);
+    final id = rawId is num ? rawId.toInt() : 0;
     final reader = IsarReaderImpl(
       object,
       propertyNamesByOffsets[_offsets]!,
