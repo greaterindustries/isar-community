@@ -20,6 +20,9 @@ class Author {
   
   final String name;
 
+  @Backlink(to: 'author')
+  final books = IsarLinks<Book>();
+
   @override
   String toString() => 'Author($id, $name)';
 
@@ -40,9 +43,6 @@ class Book {
   final String title;
   
   final author = IsarLink<Author>();
-  
-  @Backlink(to: 'author')
-  final relatedBooks = IsarLinks<Book>();
 
   @override
   String toString() => 'Book($id, $title)';
@@ -93,10 +93,10 @@ void main() {
 
       // Test backlinks
       final retrievedAuthor = await isar.authors.tGet(author.id!);
-      await retrievedAuthor!.relatedBooks.tLoad();
-      expect(retrievedAuthor.relatedBooks.length, 2);
-      expect(retrievedAuthor.relatedBooks, contains(book1));
-      expect(retrievedAuthor.relatedBooks, contains(book2));
+      await retrievedAuthor!.books.tLoad();
+      expect(retrievedAuthor.books.length, 2);
+      expect(retrievedAuthor.books, contains(book1));
+      expect(retrievedAuthor.books, contains(book2));
     });
 
     isarTest('Links work with auto-increment IDs', () async {
@@ -195,10 +195,10 @@ void main() {
 
       // Use backlinks to get all books by this author
       final retrievedAuthor = await isar.authors.tGet(author.id!);
-      await retrievedAuthor!.relatedBooks.tLoad();
+      await retrievedAuthor!.books.tLoad();
 
-      expect(retrievedAuthor.relatedBooks.length, 3);
-      expect(retrievedAuthor.relatedBooks, containsAll([book1, book2, book3]));
+      expect(retrievedAuthor.books.length, 3);
+      expect(retrievedAuthor.books, containsAll([book1, book2, book3]));
     });
   });
 }
