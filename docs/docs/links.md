@@ -18,7 +18,13 @@ Links are lazy, so you need to tell the `IsarLink` to load or save the `value` e
 The id property of the source and target collections of a link should be non-final.
 :::
 
-For non-web targets, links get loaded automatically when you use them for the first time. Let's start by adding an IsarLink to a collection:
+:::warning Web Platform
+Links are **fully supported** on the web platform. The main difference is that on web, links must always be loaded and saved explicitly using async methods (`.load()` and `.save()`), while on VM platforms links can auto-load on first access and have sync alternatives (`.loadSync()` and `.saveSync()`).
+
+For cross-platform compatibility, always use the async methods.
+:::
+
+For VM targets, links get loaded automatically when you use them for the first time. On web, you must explicitly load them. Let's start by adding an IsarLink to a collection:
 
 ```dart
 @collection
@@ -61,10 +67,13 @@ We can now use the link:
 ```dart
 final linda = await isar.students.where().nameEqualTo('Linda').findFirst();
 
+// On web, links must be loaded explicitly
+// On VM, this happens automatically on first access, but calling load() works everywhere
+await linda!.teacher.load();
 final teacher = linda.teacher.value; // > Teacher(subject: 'Math')
 ```
 
-Let's try the same thing with synchronous code. We don't need to save the link manually because `.putSync()` automatically saves all links. It even creates the teacher for us.
+Let's try the same thing with synchronous code (VM only). We don't need to save the link manually because `.putSync()` automatically saves all links. It even creates the teacher for us.
 
 ```dart
 final englishTeacher = Teacher()..subject = 'English';
