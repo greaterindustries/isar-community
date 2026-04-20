@@ -93,6 +93,7 @@ abstract class Isar {
     bool relaxedDurability = true,
     CompactCondition? compactOnLaunch,
     bool inspector = true,
+    IsarWebStorageKind? webStorage,
   }) {
     _checkOpen(name, schemas);
 
@@ -111,6 +112,7 @@ abstract class Isar {
       maxSizeMiB: maxSizeMiB,
       relaxedDurability: relaxedDurability,
       compactOnLaunch: compactOnLaunch,
+      webStorage: webStorage,
     );
   }
 
@@ -123,6 +125,7 @@ abstract class Isar {
     bool relaxedDurability = true,
     CompactCondition? compactOnLaunch,
     bool inspector = true,
+    IsarWebStorageKind? webStorage,
   }) {
     _checkOpen(name, schemas);
 
@@ -141,6 +144,7 @@ abstract class Isar {
       maxSizeMiB: maxSizeMiB,
       relaxedDurability: relaxedDurability,
       compactOnLaunch: compactOnLaunch,
+      webStorage: webStorage,
     );
   }
 

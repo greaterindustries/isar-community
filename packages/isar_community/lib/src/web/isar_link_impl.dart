@@ -1,5 +1,7 @@
 // ignore_for_file: public_member_api_docs
 
+import 'dart:js_interop';
+
 import 'package:isar_community/isar.dart';
 import 'package:isar_community/src/common/isar_link_base_impl.dart';
 import 'package:isar_community/src/common/isar_link_common.dart';
@@ -51,11 +53,11 @@ mixin IsarLinkBaseMixin<OBJ> on IsarLinkBaseImpl<OBJ> {
 
     return targetCollection.isar.getTxn(true, (IsarTxnJs txn) async {
       if (reset) {
-        await jsLink.clear(txn, containingId, backlink).wait<dynamic>();
+        await jsLink.clear(txn, containingId, backlink).toDart;
       }
-      return jsLink
+      await jsLink
           .update(txn, backlink, containingId, linkIds, unlinkIds)
-          .wait();
+          .toDart;
     });
   }
 

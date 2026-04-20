@@ -1,6 +1,7 @@
 import equal from 'fast-deep-equal'
 import { IsarInstance } from './instance'
 import { IsarLink } from './link'
+import { OpfsDatabase } from './opfs'
 import { IndexSchema, IsarType, LinkSchema, Schema } from './schema'
 
 // Polyfill for older browsers
@@ -8,12 +9,70 @@ if (typeof IDBTransaction.prototype.commit !== "function") {
   IDBTransaction.prototype.commit = function () { }
 }
 
+export type IsarWebStorageKind =
+  | 'indexedDbJsRuntime'
+  | 'opfsWasmRuntime'
+
+type RuntimeDescriptor = {
+  implemented: boolean
+  browserSupported: () => boolean
+}
+
+const runtimeDescriptors = {
+  indexedDbJsRuntime: {
+    implemented: true,
+    browserSupported: () => typeof indexedDB !== 'undefined',
+  },
+  opfsWasmRuntime: {
+    implemented: true,
+    browserSupported: () =>
+      typeof navigator !== 'undefined' &&
+      typeof navigator.storage?.getDirectory === 'function',
+  },
+} satisfies Record<IsarWebStorageKind, RuntimeDescriptor>
+
+function objectStoreNames(list: DOMStringList): string[] {
+  const names: string[] = []
+  for (let i = 0; i < list.length; i++) {
+    const name = list.item(i)
+    if (name != null) {
+      names.push(name)
+    }
+  }
+  return names
+}
+
+export function getAvailableIsarWebStorageKinds(): IsarWebStorageKind[] {
+  return Object.entries(runtimeDescriptors)
+    .filter(([, descriptor]) => descriptor.browserSupported())
+    .map(([kind]) => kind as IsarWebStorageKind)
+}
+
+export function getSupportedIsarWebStorageKinds(): IsarWebStorageKind[] {
+  return Object.entries(runtimeDescriptors)
+    .filter(([, descriptor]) =>
+      descriptor.implemented && descriptor.browserSupported())
+    .map(([kind]) => kind as IsarWebStorageKind)
+}
+
 export function openIsar(
   name: string,
   schemas: Schema[],
   relaxedDurability: boolean,
+  runtime: IsarWebStorageKind = 'indexedDbJsRuntime',
 ): Promise<IsarInstance> {
-  return openInternal(name, schemas, relaxedDurability)
+  return runtime === 'opfsWasmRuntime'
+    ? openOpfs(name, schemas, relaxedDurability)
+    : openInternal(name, schemas, relaxedDurability)
+}
+
+async function openOpfs(
+  name: string,
+  schemas: Schema[],
+  relaxedDurability: boolean,
+): Promise<IsarInstance> {
+  const db = await OpfsDatabase.open(name, schemas)
+  return new IsarInstance(db, relaxedDurability, schemas)
 }
 
 function openInternal(
@@ -27,7 +86,7 @@ function openInternal(
     req.onsuccess = () => {
       const db = req.result
       if (version == null) {
-        const txn = db.transaction(db.objectStoreNames, 'readonly')
+        const txn = db.transaction(objectStoreNames(db.objectStoreNames), 'readonly')
         if (!performUpgrade(txn, true, schemas)) {
           const newVersion = txn.db.version + 1
           db.close()
@@ -112,21 +171,21 @@ function performUpgrade(
       schemaStoreNames.push(name)
 
       const indexesOk = equal(
-        [...linkStore.indexNames],
+        objectStoreNames(linkStore.indexNames),
         [IsarLink.BacklinkIndex],
       )
       if (!indexesOk) {
         if (dryRun) {
           return false
         }
-        for (let indexName of linkStore.indexNames) {
+        for (const indexName of objectStoreNames(linkStore.indexNames)) {
           linkStore.deleteIndex(indexName)
         }
         linkStore.createIndex(IsarLink.BacklinkIndex, 'b')
       }
     }
 
-    for (let indexName of store.indexNames) {
+    for (const indexName of objectStoreNames(store.indexNames)) {
       if (schemaIndexNames.indexOf(indexName) === -1) {
         if (dryRun) {
           return false
@@ -136,7 +195,7 @@ function performUpgrade(
     }
   }
 
-  for (let storeName of txn.objectStoreNames) {
+  for (const storeName of objectStoreNames(txn.objectStoreNames)) {
     if (schemaStoreNames.indexOf(storeName) === -1) {
       if (dryRun) {
         return false
@@ -145,6 +204,7 @@ function performUpgrade(
     }
   }
 
+  return true
   return true
 }
 

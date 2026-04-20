@@ -9,7 +9,7 @@ funding:
   - https://github.com/sponsors/vicenterusso/
 
 environment:
-  sdk: ">=2.17.0 <4.0.0"
+  sdk: ">=3.4.0 <4.0.0"
   flutter: ">=3.0.0"
 
 platforms:
@@ -38,6 +38,11 @@ flutter:
         pluginClass: IsarFlutterLibsPlugin
       windows:
         pluginClass: IsarFlutterLibsPlugin
+      web:
+        default_package: isar_community_flutter_libs
+
+  assets:
+    - web/isar.js
 
 dependency_overrides:
   isar_community:

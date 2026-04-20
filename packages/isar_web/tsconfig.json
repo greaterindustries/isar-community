@@ -3,12 +3,13 @@
     "outDir": "./dist/",
     "noImplicitAny": true,
     "strictNullChecks": true,
+    "lib": ["dom", "es2017"],
     "module": "es6",
     "target": "es2017",
-    "jsx": "react",
     "allowJs": true,
     "moduleResolution": "node",
     "esModuleInterop": true,
-    "sourceMap": true,
+    "types": [],
+    "sourceMap": true
   }
 }

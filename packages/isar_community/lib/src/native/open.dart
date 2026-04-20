@@ -77,6 +77,7 @@ Future<Isar> openIsar({
   required int maxSizeMiB,
   required bool relaxedDurability,
   CompactCondition? compactOnLaunch,
+  IsarWebStorageKind? webStorage,
 }) async {
   initializeCoreBinary();
   IC.isar_connect_dart_api(NativeApi.postCObject.cast());
@@ -123,6 +124,7 @@ Isar openIsarSync({
   required int maxSizeMiB,
   required bool relaxedDurability,
   CompactCondition? compactOnLaunch,
+  IsarWebStorageKind? webStorage,
 }) {
   initializeCoreBinary();
   IC.isar_connect_dart_api(NativeApi.postCObject.cast());
@@ -157,3 +159,13 @@ Isar openIsarSync({
     return isar;
   });
 }
+
+Future<List<IsarWebStorageKind>> getSupportedWebStorageKinds() async =>
+    throw UnsupportedError(
+      'Web storage runtimes are only available on Isar web.',
+    );
+
+Future<List<IsarWebStorageKind>> getAvailableWebStorageKinds() async =>
+    throw UnsupportedError(
+      'Web storage runtimes are only available on Isar web.',
+    );

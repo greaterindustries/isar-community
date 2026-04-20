@@ -33,8 +33,9 @@ String _formatId(String helperPrefix, String webKey, int id) {
 
 String generateSchema(ObjectInfo object) {
   final helperPrefix = '_isar${object.dartName.capitalize()}';
-  var code = '''
-    const bool ${helperPrefix}IsWeb = bool.fromEnvironment('dart.library.html');
+  var code =
+      '''
+    const bool ${helperPrefix}IsWeb = bool.fromEnvironment('dart.library.js_interop');
 
     int ${helperPrefix}Id64(int hi, int lo) => (hi << 32) | (lo & 0xffffffff);
 
@@ -53,7 +54,8 @@ String generateSchema(ObjectInfo object) {
       )
       .join(',');
 
-  code += '''
+  code +=
+      '''
     name: r'${object.isarName}',
     id: ${_formatId(helperPrefix, 'collection:${object.isarName}', object.id)},
     properties: {$properties},
@@ -65,16 +67,23 @@ String generateSchema(ObjectInfo object) {
 
   if (!object.isEmbedded) {
     final indexes = object.indexes
-        .map((e) => "r'${e.name}': ${_generateIndexSchema(object, helperPrefix, e)}")
+        .map(
+          (e) =>
+              "r'${e.name}': ${_generateIndexSchema(object, helperPrefix, e)}",
+        )
         .join(',');
     final links = object.links
-        .map((e) => "r'${e.isarName}': ${_generateLinkSchema(object, helperPrefix, e)}")
+        .map(
+          (e) =>
+              "r'${e.isarName}': ${_generateLinkSchema(object, helperPrefix, e)}",
+        )
         .join(',');
     final embeddedSchemas = object.embeddedDartNames.entries
         .map((e) => "r'${e.key}': ${e.value.capitalize()}Schema")
         .join(',');
 
-    code += '''
+    code +=
+        '''
       idName: r'${object.idProperty.isarName}',
       indexes: {$indexes},
       links: {$links},
@@ -111,15 +120,21 @@ String _generatePropertySchema(ObjectInfo object, int index) {
   ''';
 }
 
-String _generateIndexSchema(ObjectInfo object, String helperPrefix, ObjectIndex index) {
-  final properties = index.properties.map((e) {
-    return '''
+String _generateIndexSchema(
+  ObjectInfo object,
+  String helperPrefix,
+  ObjectIndex index,
+) {
+  final properties = index.properties
+      .map((e) {
+        return '''
       IndexPropertySchema(
         name: r'${e.property.isarName}',
         type: IndexType.${e.type.name},
         caseSensitive: ${e.caseSensitive},
       )''';
-  }).join(',');
+      })
+      .join(',');
 
   return '''
     IndexSchema(
@@ -131,18 +146,18 @@ String _generateIndexSchema(ObjectInfo object, String helperPrefix, ObjectIndex 
     )''';
 }
 
-String _generateLinkSchema(ObjectInfo object, String helperPrefix, ObjectLink link) {
+String _generateLinkSchema(
+  ObjectInfo object,
+  String helperPrefix,
+  ObjectLink link,
+) {
   var linkName = '';
   if (link.isBacklink) {
     linkName = "linkName: r'${link.targetLinkIsarName}',";
   }
   return '''
     LinkSchema(
-      id: ${_formatId(
-        helperPrefix,
-        'link:${object.isarName}:${link.isarName}:${link.targetCollectionIsarName}:${link.targetLinkIsarName ?? ''}:${link.isBacklink}',
-        link.id(object.isarName),
-      )},
+      id: ${_formatId(helperPrefix, 'link:${object.isarName}:${link.isarName}:${link.targetCollectionIsarName}:${link.targetLinkIsarName ?? ''}:${link.isBacklink}', link.id(object.isarName))},
       name: r'${link.isarName}',
       target: r'${link.targetCollectionIsarName}',
       single: ${link.isSingle},

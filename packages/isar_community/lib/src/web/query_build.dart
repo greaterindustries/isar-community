@@ -1,13 +1,14 @@
 // ignore_for_file: public_member_api_docs, invalid_use_of_protected_member
 
-import 'dart:indexed_db';
+import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 
 import 'package:isar_community/isar.dart';
-
 import 'package:isar_community/src/web/bindings.dart';
 import 'package:isar_community/src/web/isar_collection_impl.dart';
 import 'package:isar_community/src/web/isar_web.dart';
 import 'package:isar_community/src/web/query_impl.dart';
+import 'package:web/web.dart';
 
 Query<T> buildWebQuery<T, OBJ>(
   IsarCollectionImpl<OBJ> col,
@@ -32,14 +33,16 @@ Query<T> buildWebQuery<T, OBJ>(
   }).toList();
 
   final filterJs = filter != null ? _buildFilter(col.schema, filter) : null;
-  final sortJs = sortBy.isNotEmpty ? _buildSort(sortBy) : null;
-  final distinctJs = distinctBy.isNotEmpty ? _buildDistinct(distinctBy) : null;
+  final sortJs = sortBy.isNotEmpty ? _buildSort(col.schema, sortBy) : null;
+  final distinctJs = distinctBy.isNotEmpty
+      ? _buildDistinct(col.schema, distinctBy)
+      : null;
 
   final queryJs = QueryJs(
     col.native,
-    whereClausesJs,
-    whereDistinct,
-    whereSort == Sort.asc,
+    listToJSArray(whereClausesJs),
+    whereDistinct.toJS,
+    (whereSort == Sort.asc).toJS,
     filterJs,
     sortJs,
     distinctJs,
@@ -47,12 +50,8 @@ Query<T> buildWebQuery<T, OBJ>(
     limit,
   );
 
-  QueryDeserialize<T> deserialize;
-  //if (property == null) {
-  deserialize = col.deserializeObject as T Function(Object);
-  /*} else {
-    deserialize = (jsObj) => col.schema.deserializeProp(jsObj, property) as T;
-  }*/
+  final QueryDeserialize<T> deserialize = (Object value) =>
+      col.deserializeObject(value) as T;
 
   return QueryImpl<T>(col, queryJs, deserialize, property);
 }
@@ -73,17 +72,18 @@ dynamic _valueToJs(dynamic value) {
   }
 }
 
-IdWhereClauseJs _buildIdWhereClause(IdWhereClause wc) {
-  return IdWhereClauseJs()
-    ..range = _buildKeyRange(
-      wc.lower,
-      wc.upper,
-      wc.includeLower,
-      wc.includeUpper,
-    );
+Object _buildIdWhereClause(IdWhereClause wc) {
+  final clause = JSObject();
+  clause['range'] = _buildKeyRange(
+    wc.lower,
+    wc.upper,
+    wc.includeLower,
+    wc.includeUpper,
+  );
+  return clause;
 }
 
-IndexWhereClauseJs _buildIndexWhereClause(
+Object _buildIndexWhereClause(
   CollectionSchema<dynamic> schema,
   IndexWhereClause wc,
 ) {
@@ -107,58 +107,71 @@ IndexWhereClauseJs _buildIndexWhereClause(
     upperUnwrapped = upper.isNotEmpty ? upper[0] : double.infinity;
   }
 
-  return IndexWhereClauseJs()
-    ..indexName = wc.indexName
-    ..range = _buildKeyRange(
-      wc.lower != null ? _valueToJs(lowerUnwrapped) : null,
-      wc.upper != null ? _valueToJs(upperUnwrapped) : null,
-      wc.includeLower,
-      wc.includeUpper,
-    );
+  final clause = JSObject();
+  clause['indexName'] = wc.indexName.toJS;
+  clause['range'] = _buildKeyRange(
+    wc.lower != null ? _valueToJs(lowerUnwrapped) : null,
+    wc.upper != null ? _valueToJs(upperUnwrapped) : null,
+    wc.includeLower,
+    wc.includeUpper,
+  );
+  return clause;
 }
 
-LinkWhereClauseJs _buildLinkWhereClause(
+Object _buildLinkWhereClause(
   IsarCollectionImpl<dynamic> col,
   LinkWhereClause wc,
 ) {
   // ignore: unused_local_variable
-  final linkCol = col.isar.getCollectionByNameInternal(wc.linkCollection)!
-      as IsarCollectionImpl;
+  final linkCol =
+      col.isar.getCollectionByNameInternal(wc.linkCollection)!
+          as IsarCollectionImpl;
   //final backlinkLinkName = linkCol.schema.backlinkLinkNames[wc.linkName];
-  return LinkWhereClauseJs()
-    ..linkCollection = wc.linkCollection
-    //..linkName = backlinkLinkName ?? wc.linkName
-    //..backlink = backlinkLinkName != null
-    ..id = wc.id;
+  final clause = JSObject();
+  clause['linkCollection'] = wc.linkCollection.toJS;
+  //..linkName = backlinkLinkName ?? wc.linkName
+  //..backlink = backlinkLinkName != null
+  clause['id'] = wc.id.toJS;
+  return clause;
 }
 
-KeyRange? _buildKeyRange(
+IDBKeyRange? _buildKeyRange(
   dynamic lower,
   dynamic upper,
   bool includeLower,
   bool includeUpper,
 ) {
-  if (lower != null) {
-    if (upper != null) {
-      final boundsEqual = idbCmp(lower, upper) == 0;
+  final lowerValue = lower as Object?;
+  final upperValue = upper as Object?;
+
+  if (lowerValue != null) {
+    if (upperValue != null) {
+      final boundsEqual = idbCmp(lowerValue, upperValue) == 0;
       if (boundsEqual) {
         if (includeLower && includeUpper) {
-          return KeyRange.only(lower);
+          return IDBKeyRange.only(_jsKeyValue(lowerValue));
         } else {
           // empty range
-          return KeyRange.upperBound(double.negativeInfinity, true);
+          return IDBKeyRange.upperBound(double.negativeInfinity.jsify(), true);
         }
       }
 
-      return KeyRange.bound(lower, upper, !includeLower, !includeUpper);
+      return IDBKeyRange.bound(
+        _jsKeyValue(lowerValue),
+        _jsKeyValue(upperValue),
+        !includeLower,
+        !includeUpper,
+      );
     } else {
-      return KeyRange.lowerBound(lower, !includeLower);
+      return IDBKeyRange.lowerBound(_jsKeyValue(lowerValue), !includeLower);
     }
-  } else if (upper != null) {
-    return KeyRange.upperBound(upper, !includeUpper);
+  } else if (upperValue != null) {
+    return IDBKeyRange.upperBound(_jsKeyValue(upperValue), !includeUpper);
   }
   return null;
 }
+
+JSAny? _jsKeyValue(Object? value) => value?.jsify();
 
 FilterJs? _buildFilter(
   CollectionSchema<dynamic> schema,
@@ -225,11 +238,16 @@ String _buildCondition(
     }
   }
 
-  final isListOp = condition.type != FilterConditionType.isNull &&
+  final isListOp =
+      condition.type != FilterConditionType.isNull &&
       condition.type != FilterConditionType.listLength &&
       schema.property(condition.property).type.isList;
-  final accessor =
-      condition.property == schema.idName ? 'id' : 'obj.${condition.property}';
+  final propertyAccessor = condition.property == schema.idName
+      ? 'id'
+      : 'obj.${condition.property}';
+  final accessor = condition.property == schema.idName
+      ? 'id'
+      : propertyAccessor;
   final variable = isListOp ? 'e' : accessor;
 
   final cond = _buildConditionInternal(
@@ -326,8 +344,8 @@ String _buildConditionInternal({
       final op = conditionType == FilterConditionType.startsWith
           ? 'startsWith'
           : conditionType == FilterConditionType.endsWith
-              ? 'endsWith'
-              : 'includes';
+          ? 'endsWith'
+          : 'includes';
       if (val1 is String) {
         final isString = 'typeof $variable == "string"';
         if (!caseSensitive) {
@@ -349,22 +367,39 @@ String _buildConditionInternal({
   }
 }
 
-SortCmpJs _buildSort(List<SortProperty> properties) {
-  final sort = properties.map((e) {
-    final op = e.sort == Sort.asc ? '' : '-';
-    return '${op}indexedDB.cmp(a.${e.property} ?? "-Infinity", b.${e.property} '
-        '?? "-Infinity")';
-  }).join('||');
+SortCmpJs _buildSort(
+  CollectionSchema<dynamic> schema,
+  List<SortProperty> properties,
+) {
+  final sort = properties
+      .map((e) {
+        final op = e.sort == Sort.asc ? '' : '-';
+        final accessor = e.property == schema.idName
+            ? '._id'
+            : '.${e.property}';
+        return '${op}indexedDB.cmp(a$accessor ?? "-Infinity", b$accessor ?? "-Infinity")';
+      })
+      .join('||');
   return SortCmpJs('a', 'b', 'return $sort');
 }
 
-DistinctValueJs _buildDistinct(List<DistinctProperty> properties) {
-  final distinct = properties.map((e) {
-    if (e.caseSensitive == false) {
-      return 'obj.${e.property}?.toLowerCase() ?? "-Infinity"';
-    } else {
-      return 'obj.${e.property}?.toString() ?? "-Infinity"';
-    }
-  }).join('+');
+DistinctValueJs _buildDistinct(
+  CollectionSchema<dynamic> schema,
+  List<DistinctProperty> properties,
+) {
+  final distinct = properties
+      .map((e) {
+        final accessor = e.property == schema.idName
+            ? '._id'
+            : '.${e.property}';
+        if (e.caseSensitive == false) {
+          return e.property == schema.idName
+              ? 'obj$accessor?.toString().toLowerCase() ?? "-Infinity"'
+              : 'obj$accessor?.toLowerCase() ?? "-Infinity"';
+        } else {
+          return 'obj$accessor?.toString() ?? "-Infinity"';
+        }
+      })
+      .join('+');
   return DistinctValueJs('obj', 'return $distinct');
 }

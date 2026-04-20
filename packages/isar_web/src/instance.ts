@@ -3,18 +3,21 @@ import { LinkSchema, Schema } from './schema'
 import { IsarTxn } from './txn'
 import { ChangeSet } from './watcher'
 import { BroadcastChannel } from 'broadcast-channel'
+import { OpfsDatabase } from './opfs'
 
 export const idName = '_id';
+
+type DatabaseLike = IDBDatabase | OpfsDatabase
 
 export class IsarInstance {
   private static readonly bc = new BroadcastChannel('ISAR_CHANNEL')
 
-  private readonly db: IDBDatabase
+  private readonly db: DatabaseLike
   private readonly relaxedDurability: boolean
   private collections: Map<string, IsarCollection<any>> = new Map()
   private eventHandler: EventListener
 
-  constructor(db: IDBDatabase, relaxedDurability: boolean, schemas: Schema[]) {
+  constructor(db: DatabaseLike, relaxedDurability: boolean, schemas: Schema[]) {
     this.db = db
     this.relaxedDurability = relaxedDurability
     this.initializeCollections(schemas)
@@ -32,17 +35,24 @@ export class IsarInstance {
   }
 
   private initializeCollections(schemas: Schema[]) {
-    for (let schema of schemas) {
-      const backlinkStoreNames = schemas.flatMap(s => {
-        if (s.name === schema.name) {
-          return []
+    for (const schema of schemas) {
+      const backlinkStoreNames = schemas.reduce<string[]>((names, sourceSchema) => {
+        if (sourceSchema.name === schema.name) {
+          return names
         }
-        return s.links
-          .filter(l => l.target === schema.name)
-          .map(l => {
-            return LinkSchema.getStoreName(s.name, l.target, l.name)
-          })
-      })
+        for (const linkSchema of sourceSchema.links) {
+          if (linkSchema.target === schema.name) {
+            names.push(
+              LinkSchema.getStoreName(
+                sourceSchema.name,
+                linkSchema.target,
+                linkSchema.name,
+              ),
+            )
+          }
+        }
+        return names
+      }, [])
       const col = new IsarCollection(this, schema, backlinkStoreNames)
       this.collections.set(schema.name, col)
     }
@@ -89,6 +99,11 @@ export class IsarInstance {
 
   close(deleteFromDisk: boolean = false): Promise<void> {
     IsarInstance.bc.removeEventListener('message', this.eventHandler)
+    if (this.db instanceof OpfsDatabase) {
+      this.db.close()
+      return deleteFromDisk ? this.db.deleteFromDisk() : Promise.resolve()
+    }
+
     this.db.close()
     if (deleteFromDisk) {
       const req = indexedDB.deleteDatabase(this.db.name)

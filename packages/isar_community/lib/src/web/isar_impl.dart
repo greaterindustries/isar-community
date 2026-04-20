@@ -1,14 +1,20 @@
 // ignore_for_file: public_member_api_docs
 
 import 'dart:async';
-import 'dart:html';
+import 'dart:js_interop';
 
 import 'package:isar_community/isar.dart';
-
 import 'package:isar_community/src/web/bindings.dart';
 import 'package:isar_community/src/web/isar_web.dart';
+import 'package:web/web.dart';
 
 const Symbol _zoneTxn = #zoneTxn;
+
+final class _ZoneTxnContext {
+  const _ZoneTxnContext(this.txn);
+
+  final IsarTxnJs txn;
+}
 
 class IsarImpl extends Isar {
   IsarImpl(super.name, this.instance);
@@ -31,7 +37,7 @@ class IsarImpl extends Isar {
   Future<T> _txn<T>(
     bool write,
     bool silent,
-    Future<T> Function() callback,
+    Future<T> Function(IsarTxnJs txn) callback,
   ) async {
     requireOpen();
     requireNotInTxn();
@@ -39,18 +45,20 @@ class IsarImpl extends Isar {
     final completer = Completer<void>();
     _activeAsyncTxns.add(completer.future);
 
-    final txn = instance.beginTxn(write);
-
-    final zone = Zone.current.fork(zoneValues: {_zoneTxn: txn});
-
     T result;
+    IsarTxnJs? activeTxn;
     try {
-      result = await zone.run(callback);
-      await txn.commit().wait<dynamic>();
+      final txn = instance.beginTxn(write);
+      activeTxn = txn;
+      final zone = Zone.current.fork(
+        zoneValues: {_zoneTxn: _ZoneTxnContext(txn)},
+      );
+      result = await zone.run(() => callback(txn));
+      await txn.commit().toDart;
     } catch (e) {
-      txn.abort();
-      if (e is DomException) {
-        if (e.name == DomException.CONSTRAINT) {
+      activeTxn?.abort();
+      if (e is DOMException) {
+        if (e.name == 'ConstraintError') {
           throw IsarUniqueViolationError();
         } else {
           throw IsarError('${e.name}: ${e.message}');
@@ -68,12 +76,12 @@ class IsarImpl extends Isar {
 
   @override
   Future<T> txn<T>(Future<T> Function() callback) {
-    return _txn(false, false, callback);
+    return _txn(false, false, (_) => callback());
   }
 
   @override
   Future<T> writeTxn<T>(Future<T> Function() callback, {bool silent = false}) {
-    return _txn(true, silent, callback);
+    return _txn(true, silent, (_) => callback());
   }
 
   @override
@@ -84,7 +92,7 @@ class IsarImpl extends Isar {
       unsupportedOnWeb();
 
   Future<T> getTxn<T>(bool write, Future<T> Function(IsarTxnJs txn) callback) {
-    final currentTxn = Zone.current[_zoneTxn] as IsarTxnJs?;
+    final currentTxn = (Zone.current[_zoneTxn] as _ZoneTxnContext?)?.txn;
     if (currentTxn != null) {
       if (write && !currentTxn.write) {
         throw IsarError(
@@ -93,9 +101,7 @@ class IsarImpl extends Isar {
       }
       return callback(currentTxn);
     } else if (!write) {
-      return _txn(false, false, () {
-        return callback(Zone.current[_zoneTxn] as IsarTxnJs);
-      });
+      return _txn(false, false, callback);
     } else {
       throw IsarError('Write operations require an explicit transaction.');
     }
@@ -121,7 +127,7 @@ class IsarImpl extends Isar {
     requireNotInTxn();
     await Future.wait(_activeAsyncTxns);
     await super.close();
-    await instance.close(deleteFromDisk).wait<dynamic>();
+    await instance.close(deleteFromDisk).toDart;
     return true;
   }
 

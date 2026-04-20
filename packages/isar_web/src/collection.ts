@@ -1,5 +1,6 @@
 import { bulkDelete, bulkDeleteByIndex } from './bulk-delete'
 import { idName, IsarInstance } from './instance'
+import { compareKeys } from './key'
 import { IsarLink } from './link'
 import { IndexSchema, IsarType, Schema } from './schema'
 import { IsarTxn } from './txn'
@@ -21,6 +22,7 @@ export class IsarCollection<OBJ> extends IsarWatchable<OBJ> {
   private readonly backlinkStoreNames: ReadonlyArray<string>
   private readonly multiEntryIndexes: string[]
   private readonly indexKeyPaths = new Map<string, string[]>()
+  private readonly propertyAliases: ReadonlyArray<readonly [string, string]>
 
   constructor(
     isar: IsarInstance,
@@ -30,6 +32,10 @@ export class IsarCollection<OBJ> extends IsarWatchable<OBJ> {
     super()
     this.isar = isar
     this.name = schema.name
+    this.propertyAliases = schema.properties.map(property => [
+      property.id.toString(),
+      property.name,
+    ])
     this.uniqueIndexes = schema.indexes
       .filter(i => i.unique)
       .map(i => ({
@@ -44,8 +50,20 @@ export class IsarCollection<OBJ> extends IsarWatchable<OBJ> {
       .filter(i => IndexSchema.isIndexMultiEntry(schema, i))
       .map(i => i.name)
     this.indexKeyPaths = new Map(
-      schema.indexes.map(i => [i.name, i.properties.map(p => p.name)]),
+      schema.indexes.map(i => [
+        i.name,
+        i.properties.map(p => p.name),
+      ]),
     )
+  }
+
+  normalizeObject(object: any): any {
+    for (const [slot, name] of this.propertyAliases) {
+      if (!(name in object) && slot in object) {
+        object[name] = object[slot]
+      }
+    }
+    return object
   }
 
   getLink(name: string): IsarLink | undefined {
@@ -54,6 +72,11 @@ export class IsarCollection<OBJ> extends IsarWatchable<OBJ> {
 
   getIndexKeyPath(indexName: string): string[] {
     return this.indexKeyPaths.get(indexName)!
+  }
+
+  private normalizeIndexLookupKey(indexName: string, key: IndexKey): IDBValidKey {
+    const keyPath = this.getIndexKeyPath(indexName)
+    return keyPath.length === 1 && Array.isArray(key) ? key[0] : key
   }
 
   isMultiEntryIndex(indexName: string): boolean {
@@ -67,6 +90,7 @@ export class IsarCollection<OBJ> extends IsarWatchable<OBJ> {
       req.onsuccess = () => {
         const object = req.result
         if (object) {
+          this.normalizeObject(object)
           object[idName] = id
         }
         resolve(object)
@@ -87,6 +111,7 @@ export class IsarCollection<OBJ> extends IsarWatchable<OBJ> {
         req.onsuccess = () => {
           const object = req.result
           if (object) {
+            this.normalizeObject(object)
             object[idName] = id
           }
           results.push(object)
@@ -110,7 +135,9 @@ export class IsarCollection<OBJ> extends IsarWatchable<OBJ> {
       return Promise.resolve([])
     }
 
-    keys.sort(indexedDB.cmp)
+    const normalizedKeys = keys
+      .map(key => this.normalizeIndexLookupKey(indexName, key))
+      .sort(compareKeys)
     return new Promise((resolve, reject) => {
       const store = txn.txn.objectStore(this.name)
       const results: (OBJ | undefined)[] = []
@@ -118,8 +145,11 @@ export class IsarCollection<OBJ> extends IsarWatchable<OBJ> {
       cursorReq.onsuccess = () => {
         const cursor = cursorReq.result
         if (cursor) {
-          const object = cursor.value
-          if (results.length > 0 || cursor.key === keys[0]) {
+          const object = this.normalizeObject(cursor.value)
+          if (
+            results.length > 0 ||
+            compareKeys(cursor.key, normalizedKeys[0]) === 0
+          ) {
             if (object) {
               object[idName] = cursor.primaryKey
               results.push(object)
@@ -127,17 +157,17 @@ export class IsarCollection<OBJ> extends IsarWatchable<OBJ> {
               results.push(undefined)
             }
           }
-          if (results.length == keys.length) {
+          if (results.length == normalizedKeys.length) {
             resolve(results)
           } else {
-            cursor.continue(keys[results.length])
+            cursor.continue(normalizedKeys[results.length])
           }
         } else {
           resolve([])
         }
       }
-      cursorReq.onerror = e => {
-        reject(e)
+      cursorReq.onerror = (event: any) => {
+        reject(event)
       }
     })
   }
@@ -150,6 +180,7 @@ export class IsarCollection<OBJ> extends IsarWatchable<OBJ> {
       for (let i = 0; i < objects.length; i++) {
         const object = objects[i] as any
         const id = object[idName]
+        this.normalizeObject(object)
 
         const req = store.put(object)
         delete object[idName]

@@ -88,6 +88,7 @@ export class IsarQuery<OBJ> {
       next: Function,
       resolve: Function,
     ) => {
+      const normalizedObject = this.collection.normalizeObject(object)
       if (idsSet.has(id)) {
         next()
         return
@@ -96,13 +97,13 @@ export class IsarQuery<OBJ> {
       }
 
       if (this.filter) {
-        if (!this.filter(id, object)) {
+        if (!this.filter(id, normalizedObject)) {
           next()
           return
         }
       }
       if (unsortedDistinct) {
-        const value = unsortedDistinct(object)
+        const value = unsortedDistinct(normalizedObject)
         if (distinctSet.has(value)) {
           next()
           return
@@ -110,8 +111,8 @@ export class IsarQuery<OBJ> {
           distinctSet.add(value)
         }
       }
-      object[idName] = id
-      results.push(object)
+      normalizedObject[idName] = id
+      results.push(normalizedObject)
       if (results.length < unsortedLimit) {
         next()
       } else {

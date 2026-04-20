@@ -77,10 +77,11 @@ Query<T> buildNativeQuery<T>(
   if (property == null) {
     deserialize = (col as IsarCollectionImpl<T>).deserializeObjects;
   } else {
-    propertyId =
-        property != col.schema.idName ? col.schema.property(property).id : null;
-    deserialize =
-        (CObjectSet cObjSet) => col.deserializeProperty(cObjSet, propertyId);
+    propertyId = property != col.schema.idName
+        ? col.schema.property(property).id
+        : null;
+    deserialize = (CObjectSet cObjSet) =>
+        col.deserializeProperty(cObjSet, propertyId);
   }
 
   final queryPtr = IC.isar_qb_build(qbPtr);
@@ -930,8 +931,22 @@ void _buildConditionStringOp({
       throw IsarError('String operation value must not be null');
     }
 
-    // ignore: missing_enum_constant_in_switch
     switch (conditionType) {
+      case FilterConditionType.equalTo:
+        nCall(
+          IC.isar_filter_string(
+            colPtr,
+            filterPtr,
+            val,
+            true,
+            val,
+            true,
+            caseSensitive,
+            embeddedColId ?? 0,
+            propertyId!,
+          ),
+        );
+        break;
       case FilterConditionType.startsWith:
         nCall(
           IC.isar_filter_string_starts_with(
@@ -980,6 +995,8 @@ void _buildConditionStringOp({
           ),
         );
         break;
+      default:
+        throw IsarError('Unsupported string operation: $conditionType');
     }
   } else {
     throw IsarError('Unsupported type for condition');

@@ -6,14 +6,14 @@ import 'dart:math';
 
 import 'package:isar_community/isar.dart';
 import 'package:isar_test/src/init_native.dart'
-    if (dart.library.html) 'package:isar_test/src/init_web.dart';
+    if (dart.library.js_interop) 'package:isar_test/src/init_web.dart';
 import 'package:isar_test/src/sync_async_helper.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as path;
 import 'package:test/test.dart';
 import 'package:test_api/src/backend/invoker.dart';
 
-const kIsWeb = identical(0, 0.0);
+const kIsWeb = bool.fromEnvironment('dart.library.js_interop');
 
 final testErrors = <String>[];
 int testCount = 0;

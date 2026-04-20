@@ -23,7 +23,10 @@ export function useCursor(params: CursorParams): Promise<void> {
     const store = params.txn.txn.objectStore(params.storeName)
     const source =
       params.indexName != null ? store.index(params.indexName) : store
-    const multiEntry = params.indexName && (source as IDBIndex).multiEntry
+    const indexSource =
+      params.indexName != null ? store.index(params.indexName) : undefined
+    const multiEntry = indexSource?.multiEntry ?? false
+    const multiEntryKeyPath = indexSource?.keyPath
 
     const cursorReq = source.openCursor(params.range, params.direction)
     cursorReq.onsuccess = () => {
@@ -34,9 +37,10 @@ export function useCursor(params: CursorParams): Promise<void> {
           params.offset = undefined
         } else {
           if (multiEntry) {
-            const isArray = Array.isArray(
-              cursor.value[source.keyPath as string],
-            )
+            const keyPath =
+              typeof multiEntryKeyPath === 'string' ? multiEntryKeyPath : null
+            const isArray =
+              keyPath != null && Array.isArray(cursor.value[keyPath])
             if (!isArray) {
               cursor.continue()
               return
@@ -56,8 +60,8 @@ export function useCursor(params: CursorParams): Promise<void> {
         resolve()
       }
     }
-    cursorReq.onerror = e => {
-      reject(e)
+    cursorReq.onerror = (event: any) => {
+      reject(event)
     }
   })
 }

@@ -16,7 +16,7 @@ class PropertySchema {
   @protected
   factory PropertySchema.fromJson(Map<String, dynamic> json) {
     return PropertySchema(
-      id: -1,
+      id: (json['id'] as num?)?.toInt() ?? -1,
       name: json['name'] as String,
       type: IsarType.values.firstWhere((e) => e.schemaName == json['type']),
       enumMap: json['enumMap'] as Map<String, dynamic>?,
@@ -43,6 +43,7 @@ class PropertySchema {
   @protected
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{
+      'id': id,
       'name': name,
       'type': type.schemaName,
       if (target != null) 'target': target,

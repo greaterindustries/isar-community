@@ -1,14 +1,17 @@
 import { IsarInstance } from './instance'
+import { OpfsTransaction } from './opfs'
 import { IsarChangeSet } from './watcher'
+
+type TransactionLike = IDBTransaction | OpfsTransaction
 
 export class IsarTxn {
   readonly isar: IsarInstance
-  readonly txn: IDBTransaction
+  readonly txn: TransactionLike
   active: boolean
   readonly write: boolean
   private readonly changes: Map<string, IsarChangeSet<any>> | undefined
 
-  constructor(isar: IsarInstance, txn: IDBTransaction, write: boolean) {
+  constructor(isar: IsarInstance, txn: TransactionLike, write: boolean) {
     this.isar = isar
     this.txn = txn
     this.active = true

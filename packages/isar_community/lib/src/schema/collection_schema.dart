@@ -119,21 +119,15 @@ class CollectionSchema<OBJ> extends Schema<OBJ> {
   @protected
   @override
   Map<String, dynamic> toJson() {
-    final json = {
+    return {
       ...super.toJson(),
       'idName': idName,
       'indexes': [for (final index in indexes.values) index.toJson()],
       'links': [for (final link in links.values) link.toJson()],
-    };
-
-    assert(() {
-      json['embeddedSchemas'] = [
+      'embeddedSchemas': [
         for (final schema in embeddedSchemas.values) schema.toJson(),
-      ];
-      return true;
-    }());
-
-    return json;
+      ],
+    };
   }
 }
 

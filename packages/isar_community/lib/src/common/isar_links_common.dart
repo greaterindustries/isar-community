@@ -3,11 +3,12 @@ import 'dart:collection';
 import 'package:isar_community/isar.dart';
 import 'package:isar_community/src/common/isar_link_base_impl.dart';
 
-const bool _kIsWeb = identical(0, 0.0);
+const bool _kIsWeb = bool.fromEnvironment('dart.library.js_interop');
 
 /// @nodoc
 abstract class IsarLinksCommon<OBJ> extends IsarLinkBaseImpl<OBJ>
-    with IsarLinks<OBJ>, SetMixin<OBJ> {
+    with SetMixin<OBJ>
+    implements IsarLinks<OBJ> {
   final _objects = <Id, OBJ>{};
 
   /// @nodoc
@@ -127,6 +128,12 @@ abstract class IsarLinksCommon<OBJ> extends IsarLinkBaseImpl<OBJ>
     clear();
     isLoaded = true;
   }
+
+  @override
+  Future<int> count() => filter().count();
+
+  @override
+  int countSync() => filter().countSync();
 
   @override
   bool add(OBJ value) {

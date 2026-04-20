@@ -8,8 +8,10 @@ export type Schema = {
 }
 
 type PropertySchema = {
+  id: number
   name: string
   type: IsarType
+  target?: string
 }
 
 type IndexSchema = {

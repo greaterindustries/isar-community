@@ -11,7 +11,8 @@
     "test": "test"
   },
   "scripts": {
-    "build": "rm -rf ./out && npx tsc"
+    "build": "rm -rf ./dist && npx tsc && npx webpack",
+    "build:flutter-assets": "npm run build && cp ./dist/index.js ../isar_community_flutter_libs/web/isar.js && cp ./dist/index.js.map ../isar_community_flutter_libs/web/isar.js.map"
   },
   "devDependencies": {
     "ts-loader": "^9.2.6",
